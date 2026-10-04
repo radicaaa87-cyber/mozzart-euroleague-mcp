@@ -168,3 +168,13 @@ Whenever a model rule is changed:
 - Record why it changed.
 - Record sample size used for the decision.
 - Never overwrite history silently.
+
+## ACB pipeline status — 2026-10-04
+- Official ACB API client added in radicaaa87-cyber/euroleague-analytics.
+- Supported pull: matchweeks, matches, official player boxscores, optional play-by-play.
+- ACB 2026/27 edition mapping added (edition_id 91).
+- Model-ready ACB player_game_logs.csv builder added.
+- ACB↔EuroLeague player identity bridge added.
+- Separate EL L5 / ACB L5 recent-form builder added; leagues are not averaged together.
+- GitHub Actions workflow added: .github/workflows/acb-pull.yml.
+- Blocking dependency: repository secret ACB_BEARER_TOKEN must be configured before the first real pull.
