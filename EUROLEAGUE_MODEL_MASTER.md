@@ -177,4 +177,6 @@ Whenever a model rule is changed:
 - ACB↔EuroLeague player identity bridge added.
 - Separate EL L5 / ACB L5 recent-form builder added; leagues are not averaged together.
 - GitHub Actions workflow added: .github/workflows/acb-pull.yml.
-- Blocking dependency: repository secret ACB_BEARER_TOKEN must be configured before the first real pull.
+- Current ACB frontend uses X-Apikey on the current api2.acb.com seasondata/matchdata API. Repository secret required: ACB_API_KEY.
+
+- 2026-10-04 update: ACB client migrated from legacy openapilive/Bearer flow to current X-Apikey API; boxscore, play-by-play, shots and official advanced-stats endpoints wired into the pull workflow.
