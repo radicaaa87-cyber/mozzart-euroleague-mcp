@@ -2,10 +2,18 @@ from fastmcp import FastMCP
 import os
 import requests
 
-mcp = FastMCP("OddsPapi EuroLeague")
+mcp = FastMCP("OddsPapi EuroLeague + ACB")
 
 BASE_URL = "https://api.oddspapi.io/v4"
 API_KEY = os.getenv("ODDSPAPI_API_KEY")
+
+BASKETBALL_SPORT_ID = 11
+
+LEAGUE_ALIASES = {
+    "euroleague": ["euroleague", "euro league"],
+    "acb": ["liga endesa", "acb", "liga acb", "endesa"],
+    "liga endesa": ["liga endesa", "acb", "liga acb", "endesa"],
+}
 
 
 def api_get(endpoint: str, params=None):
@@ -36,6 +44,71 @@ def api_get(endpoint: str, params=None):
         return {"error": str(e)}
 
 
+def _normalize(value: str) -> str:
+    return " ".join((value or "").strip().lower().replace("-", " ").split())
+
+
+def _resolve_league(league: str):
+    """
+    Resolve a basketball league name/alias to one OddsPapi tournament object.
+    This intentionally resolves dynamically instead of hardcoding tournament IDs.
+    """
+    query = _normalize(league)
+    aliases = LEAGUE_ALIASES.get(query, [query])
+
+    tournaments = api_get(
+        "tournaments",
+        {
+            "sportId": BASKETBALL_SPORT_ID,
+            "language": "en"
+        }
+    )
+
+    if isinstance(tournaments, dict) and tournaments.get("error"):
+        return tournaments
+
+    if not isinstance(tournaments, list):
+        return {
+            "error": "Unexpected tournaments response",
+            "response": tournaments
+        }
+
+    normalized_aliases = [_normalize(x) for x in aliases]
+
+    exact_matches = []
+    partial_matches = []
+
+    for tournament in tournaments:
+        name = _normalize(str(tournament.get("tournamentName", "")))
+        slug = _normalize(str(tournament.get("tournamentSlug", "")))
+
+        if name in normalized_aliases or slug in normalized_aliases:
+            exact_matches.append(tournament)
+            continue
+
+        if any(alias and (alias in name or alias in slug) for alias in normalized_aliases):
+            partial_matches.append(tournament)
+
+    matches = exact_matches or partial_matches
+
+    if not matches:
+        return {
+            "error": f"League '{league}' was not found in OddsPapi basketball tournaments",
+            "sportId": BASKETBALL_SPORT_ID
+        }
+
+    # Prefer the tournament with the largest amount of currently visible fixtures.
+    def fixture_count(item):
+        return (
+            int(item.get("futureFixtures") or 0)
+            + int(item.get("upcomingFixtures") or 0)
+            + int(item.get("liveFixtures") or 0)
+        )
+
+    matches.sort(key=fixture_count, reverse=True)
+    return matches[0]
+
+
 @mcp.tool()
 def test_connection():
     """
@@ -48,14 +121,27 @@ def test_connection():
 def get_tournaments(sport_id: int):
     """
     Get OddsPapi tournaments for a sport.
-    Useful for finding the EuroLeague tournament ID.
+    Basketball sportId is 11.
     """
     return api_get(
         "tournaments",
         {
-            "sportId": sport_id
+            "sportId": sport_id,
+            "language": "en"
         }
     )
+
+
+@mcp.tool()
+def find_basketball_league(league: str):
+    """
+    Find a basketball league and return its OddsPapi tournament metadata.
+
+    Supported aliases include:
+    - EuroLeague / Euroleague
+    - ACB / Liga Endesa
+    """
+    return _resolve_league(league)
 
 
 @mcp.tool()
@@ -100,6 +186,109 @@ def get_fixtures(
         params["hasOdds"] = "true"
 
     return api_get("fixtures", params)
+
+
+@mcp.tool()
+def get_league_fixtures(
+    league: str,
+    date_from: str = "",
+    date_to: str = "",
+    status_id: int = -1,
+    bookmakers: str = ""
+):
+    """
+    Get basketball fixtures by league name instead of tournament ID.
+
+    Examples:
+    league="euroleague"
+    league="acb"
+    league="liga endesa"
+    """
+    tournament = _resolve_league(league)
+
+    if isinstance(tournament, dict) and tournament.get("error"):
+        return tournament
+
+    tournament_id = tournament.get("tournamentId")
+    if tournament_id is None:
+        return {
+            "error": "Resolved league has no tournamentId",
+            "tournament": tournament
+        }
+
+    params = {
+        "tournamentId": tournament_id,
+        "language": "en"
+    }
+
+    if date_from:
+        params["from"] = date_from
+
+    if date_to:
+        params["to"] = date_to
+
+    if status_id >= 0:
+        params["statusId"] = status_id
+
+    if bookmakers:
+        params["bookmakers"] = bookmakers
+        params["hasOdds"] = "true"
+
+    fixtures = api_get("fixtures", params)
+
+    return {
+        "league": league,
+        "resolvedTournament": tournament,
+        "fixtures": fixtures
+    }
+
+
+@mcp.tool()
+def get_acb_fixtures(
+    date_from: str = "",
+    date_to: str = "",
+    status_id: int = -1,
+    bookmakers: str = ""
+):
+    """
+    Convenience tool for Spain's ACB / Liga Endesa.
+    The tournament ID is resolved dynamically from OddsPapi.
+    """
+    tournament = _resolve_league("acb")
+
+    if isinstance(tournament, dict) and tournament.get("error"):
+        return tournament
+
+    tournament_id = tournament.get("tournamentId")
+    if tournament_id is None:
+        return {
+            "error": "Resolved ACB league has no tournamentId",
+            "tournament": tournament
+        }
+
+    params = {
+        "tournamentId": tournament_id,
+        "language": "en"
+    }
+
+    if date_from:
+        params["from"] = date_from
+
+    if date_to:
+        params["to"] = date_to
+
+    if status_id >= 0:
+        params["statusId"] = status_id
+
+    if bookmakers:
+        params["bookmakers"] = bookmakers
+        params["hasOdds"] = "true"
+
+    return {
+        "league": "ACB / Liga Endesa",
+        "resolvedTournament": tournament,
+        "fixtures": api_get("fixtures", params)
+    }
 
 
 @mcp.tool()
@@ -202,6 +391,7 @@ def get_markets():
 def get_participants(sport_id: int):
     """
     Get participant/team names for a sport.
+    Basketball sportId is 11.
     """
     return api_get(
         "participants",
