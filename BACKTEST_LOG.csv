@@ -1,0 +1,9 @@
+test_id,date,model_version,dataset,filter_or_rule,direction,edge_min,edge_max,n_bets,wins,losses,pushes,dnp_excluded,hit_rate,avg_odds,roi_units,notes
+T001,2026-10-04,MODEL 1.0,EuroLeague 2024/25,Control group |edge| 0-1,ALL,0,1,,,,,,,,,Baseline control group
+T002,2026-10-04,MODEL 1.0,EuroLeague 2024/25,Edge >=1.0,ALL,1,,,,,,,,,,Pending recalculation on full sample
+T003,2026-10-04,MODEL 1.0,EuroLeague 2024/25,Edge >=1.5,ALL,1.5,,,,,,,,,,Pending recalculation on full sample
+T004,2026-10-04,MODEL 1.0,EuroLeague 2024/25,Edge >=2.0,ALL,2,,,,,,,,,,Pending recalculation on full sample
+T005,2026-10-04,MODEL 1.0,EuroLeague 2024/25,Edge >=2.5,ALL,2.5,,,,,,,,,,Pending recalculation on full sample
+T006,2026-10-04,MODEL 1.0,EuroLeague 2024/25,Edge >=3.0,ALL,3,,,,,,,,,,Pending recalculation on full sample
+T007,2026-10-04,MODEL 1.0,EuroLeague 2024/25,Positive edge only,OVER,1,,,,,,,,,,Track separately
+T008,2026-10-04,MODEL 1.0,EuroLeague 2024/25,Negative edge only,UNDER,1,,,,,,,,,,Track separately
